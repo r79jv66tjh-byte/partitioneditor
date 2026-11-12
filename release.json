@@ -1,0 +1,5 @@
+{
+  "name": "PartitionEditor",
+  "entry": "PartitionEditor.pyw",
+  "pyinstaller": []
+}

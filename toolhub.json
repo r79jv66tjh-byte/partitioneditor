@@ -1,0 +1,375 @@
+{
+  "name": "PartitionEditor",
+  "category": "Laufwerke & USB",
+  "description": "Partitionen bearbeiten wie in der Datenträgerverwaltung: anlegen (mit Formatieren), löschen, vergrößern/verkleinern (NTFS), Laufwerksbuchstabe und Name ändern, aktiv setzen (MBR), aus-/einblenden, leere Datenträger zwischen MBR und GPT umstellen bzw. initialisieren. Jede Änderung erst als Vorschau vorher → nachher; mehrere Änderungen können gemeinsam angewendet werden. System-/Windows-Datenträger sind immer gesperrt, interne Platten nur nach Freischalten in der GUI.",
+  "ignore": [],
+  "commands": [
+    {
+      "name": "disks",
+      "description": "Alle Datenträger mit Partitionsstil, Bustyp, Sperrgründen (editable=false heißt: darf nicht bearbeitet werden) und Aufteilung (layout: Partitionen mit Nummer, Offset, Größe, Buchstabe, Name, Dateisystem, aktiv/ausgeblendet sowie freie Bereiche). Dazu freie Laufwerksbuchstaben.",
+      "run": [
+        "python",
+        "cli.py",
+        "disks"
+      ],
+      "args": [
+        {
+          "name": "editable",
+          "flag": "--editable",
+          "type": "boolean",
+          "required": false,
+          "description": "Nur bearbeitbare Datenträger"
+        }
+      ],
+      "readonly": true
+    },
+    {
+      "name": "sizes",
+      "description": "Möglicher Größenbereich einer Partition (min/max laut Windows, Get-PartitionSupportedSize) – vor resize aufrufen. Braucht Adminrechte (Windows fragt per UAC).",
+      "run": [
+        "python",
+        "cli.py",
+        "sizes"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "flag": "--target",
+          "type": "string",
+          "required": false,
+          "description": "Laufwerksbuchstabe der Partition, z. B. T:"
+        },
+        {
+          "name": "disk",
+          "flag": "--disk",
+          "type": "string",
+          "required": false,
+          "description": "Datenträgernummer (mit partition statt target)"
+        },
+        {
+          "name": "partition",
+          "flag": "--partition",
+          "type": "string",
+          "required": false,
+          "description": "Partitionsnummer"
+        }
+      ],
+      "readonly": true
+    },
+    {
+      "name": "plan",
+      "description": "Vorschau einer Liste von Änderungen ohne etwas zu ändern: Schritte, Aufteilung vorher/nachher je Datenträger, Fehler, Sperrgründe und der nötige confirm_target-Wert. ops ist eine JSON-Liste, z. B. [{\"op\":\"delete\",\"disk\":3,\"partition\":2},{\"op\":\"resize\",\"disk\":3,\"partition\":1,\"size\":\"max\"}]. Ops: create (disk, size z. B. 500MB oder max, fs NTFS/exFAT/FAT32/RAW, letter auto/none/X, label, optional offset), delete, resize (size), letter (letter oder \"\"), label, active (value true/false, nur MBR), hidden (value), convert (style GPT/MBR, nur leere Datenträger). Partition per partition (Nummer), offset oder target (Buchstabe).",
+      "run": [
+        "python",
+        "cli.py",
+        "plan"
+      ],
+      "args": [
+        {
+          "name": "ops",
+          "flag": "--ops",
+          "type": "string",
+          "required": true,
+          "description": "JSON-Liste der Änderungen"
+        }
+      ],
+      "readonly": true
+    },
+    {
+      "name": "apply",
+      "description": "Liste von Änderungen (Format wie bei plan) gemeinsam ausführen. Vorher wird alles mit frischen Daten neu geprüft; bricht beim ersten Fehler ab und meldet, was erledigt ist. confirm_target = Datenträgernummer (bei mehreren Datenträgern z. B. '3,4'). Ohne confirm=true nur Vorschau. Braucht Adminrechte (UAC).",
+      "run": [
+        "python",
+        "cli.py",
+        "apply"
+      ],
+      "args": [
+        {
+          "name": "ops",
+          "flag": "--ops",
+          "type": "string",
+          "required": true,
+          "description": "JSON-Liste der Änderungen"
+        },
+        {
+          "name": "confirm_target",
+          "flag": "--confirm-target",
+          "type": "string",
+          "required": true,
+          "description": "Zur Bestätigung die Datenträgernummer(n)"
+        }
+      ],
+      "readonly": false,
+      "timeout": 3600
+    },
+    {
+      "name": "create",
+      "description": "Neue Partition im größten (oder per offset gewählten) freien Bereich anlegen und formatieren. Bei MBR legt Windows ab der 4. Partition automatisch eine erweiterte mit logischen Laufwerken an. confirm_target = Datenträgernummer. Ohne confirm=true nur Vorschau. Braucht Adminrechte (UAC).",
+      "run": [
+        "python",
+        "cli.py",
+        "create"
+      ],
+      "args": [
+        {
+          "name": "disk",
+          "flag": "--disk",
+          "type": "string",
+          "required": true,
+          "description": "Datenträgernummer"
+        },
+        {
+          "name": "size",
+          "flag": "--size",
+          "type": "string",
+          "required": false,
+          "description": "z. B. 500MB, 20GB oder max (Standard)"
+        },
+        {
+          "name": "fs",
+          "flag": "--fs",
+          "type": "string",
+          "required": false,
+          "description": "Dateisystem (Standard NTFS; RAW = nicht formatieren)",
+          "enum": [
+            "NTFS",
+            "exFAT",
+            "FAT32",
+            "RAW"
+          ]
+        },
+        {
+          "name": "letter",
+          "flag": "--letter",
+          "type": "string",
+          "required": false,
+          "description": "Laufwerksbuchstabe, auto (Standard) oder none"
+        },
+        {
+          "name": "label",
+          "flag": "--label",
+          "type": "string",
+          "required": false,
+          "description": "Name"
+        },
+        {
+          "name": "offset",
+          "flag": "--offset",
+          "type": "string",
+          "required": false,
+          "description": "Start in Bytes (aus disks/layout, freier Bereich)"
+        },
+        {
+          "name": "confirm_target",
+          "flag": "--confirm-target",
+          "type": "string",
+          "required": true,
+          "description": "Zur Bestätigung die Datenträgernummer"
+        }
+      ],
+      "readonly": false,
+      "timeout": 1800
+    },
+    {
+      "name": "delete",
+      "description": "Partition löschen (Daten darauf sind weg). Erweiterte Partitionen nur, wenn leer. confirm_target = Datenträgernummer oder der Buchstabe der Partition. Ohne confirm=true nur Vorschau. Braucht Adminrechte (UAC).",
+      "run": [
+        "python",
+        "cli.py",
+        "delete"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "flag": "--target",
+          "type": "string",
+          "required": false,
+          "description": "Laufwerksbuchstabe der Partition, z. B. T:"
+        },
+        {
+          "name": "disk",
+          "flag": "--disk",
+          "type": "string",
+          "required": false,
+          "description": "Datenträgernummer (mit partition statt target)"
+        },
+        {
+          "name": "partition",
+          "flag": "--partition",
+          "type": "string",
+          "required": false,
+          "description": "Partitionsnummer"
+        },
+        {
+          "name": "confirm_target",
+          "flag": "--confirm-target",
+          "type": "string",
+          "required": true,
+          "description": "Datenträgernummer oder Buchstabe der Partition"
+        }
+      ],
+      "readonly": false
+    },
+    {
+      "name": "resize",
+      "description": "NTFS/ReFS-Partition vergrößern (in direkt folgenden freien Platz) oder verkleinern (höchstens bis min aus sizes). confirm_target = Datenträgernummer oder Buchstabe. Ohne confirm=true nur Vorschau. Braucht Adminrechte (UAC).",
+      "run": [
+        "python",
+        "cli.py",
+        "resize"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "flag": "--target",
+          "type": "string",
+          "required": false,
+          "description": "Laufwerksbuchstabe der Partition"
+        },
+        {
+          "name": "disk",
+          "flag": "--disk",
+          "type": "string",
+          "required": false,
+          "description": "Datenträgernummer (mit partition statt target)"
+        },
+        {
+          "name": "partition",
+          "flag": "--partition",
+          "type": "string",
+          "required": false,
+          "description": "Partitionsnummer"
+        },
+        {
+          "name": "size",
+          "flag": "--size",
+          "type": "string",
+          "required": true,
+          "description": "Neue Größe, z. B. 50GB, oder max"
+        },
+        {
+          "name": "confirm_target",
+          "flag": "--confirm-target",
+          "type": "string",
+          "required": true,
+          "description": "Datenträgernummer oder Buchstabe der Partition"
+        }
+      ],
+      "readonly": false,
+      "timeout": 3600
+    },
+    {
+      "name": "set",
+      "description": "Eigenschaften einer Partition ändern: Laufwerksbuchstabe (oder none), Name, aktiv (nur MBR), ausgeblendet. confirm_target = Datenträgernummer oder Buchstabe. Ohne confirm=true nur Vorschau. Braucht Adminrechte (UAC).",
+      "run": [
+        "python",
+        "cli.py",
+        "set"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "flag": "--target",
+          "type": "string",
+          "required": false,
+          "description": "Laufwerksbuchstabe der Partition"
+        },
+        {
+          "name": "disk",
+          "flag": "--disk",
+          "type": "string",
+          "required": false,
+          "description": "Datenträgernummer (mit partition statt target)"
+        },
+        {
+          "name": "partition",
+          "flag": "--partition",
+          "type": "string",
+          "required": false,
+          "description": "Partitionsnummer"
+        },
+        {
+          "name": "letter",
+          "flag": "--letter",
+          "type": "string",
+          "required": false,
+          "description": "Neuer Buchstabe oder none"
+        },
+        {
+          "name": "label",
+          "flag": "--label",
+          "type": "string",
+          "required": false,
+          "description": "Neuer Name"
+        },
+        {
+          "name": "active",
+          "flag": "--active",
+          "type": "string",
+          "required": false,
+          "description": "Aktiv (nur MBR)",
+          "enum": [
+            "on",
+            "off"
+          ]
+        },
+        {
+          "name": "hidden",
+          "flag": "--hidden",
+          "type": "string",
+          "required": false,
+          "description": "Ausblenden",
+          "enum": [
+            "on",
+            "off"
+          ]
+        },
+        {
+          "name": "confirm_target",
+          "flag": "--confirm-target",
+          "type": "string",
+          "required": true,
+          "description": "Datenträgernummer oder Buchstabe der Partition"
+        }
+      ],
+      "readonly": false
+    },
+    {
+      "name": "convert",
+      "description": "Leeren (oder nicht initialisierten) Datenträger auf GPT oder MBR umstellen. Datenträger mit Partitionen werden abgelehnt – erst löschen (geht zusammen in apply). confirm_target = Datenträgernummer. Ohne confirm=true nur Vorschau. Braucht Adminrechte (UAC).",
+      "run": [
+        "python",
+        "cli.py",
+        "convert"
+      ],
+      "args": [
+        {
+          "name": "disk",
+          "flag": "--disk",
+          "type": "string",
+          "required": true,
+          "description": "Datenträgernummer"
+        },
+        {
+          "name": "style",
+          "flag": "--style",
+          "type": "string",
+          "required": true,
+          "description": "Neuer Partitionsstil",
+          "enum": [
+            "GPT",
+            "MBR"
+          ]
+        },
+        {
+          "name": "confirm_target",
+          "flag": "--confirm-target",
+          "type": "string",
+          "required": true,
+          "description": "Zur Bestätigung die Datenträgernummer"
+        }
+      ],
+      "readonly": false
+    }
+  ]
+}

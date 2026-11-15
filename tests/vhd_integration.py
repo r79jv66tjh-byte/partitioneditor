@@ -296,7 +296,7 @@ def main():
         # ---------------- GUI: App laden, Änderung über Dialog-Logik anwenden
         try:
             gui_test(td)
-        except Exception as e:
+        except Exception:
             log("GUI", False, err=traceback.format_exc()[-800:])
         return 0
     except SystemExit:

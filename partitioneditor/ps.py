@@ -1,11 +1,10 @@
-"""PowerShell aufrufen (JSON rein/raus) und lange Vorgänge zeilenweise mitlesen."""
+"""Call PowerShell with JSON in and out."""
 from __future__ import annotations
 
 import base64
 import json
 import os
 import subprocess
-from typing import Callable, Iterator
 
 CREATE_NO_WINDOW = 0x08000000
 _PRELUDE = ("$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';"
@@ -63,55 +62,6 @@ def quote(s: str) -> str:
     return "'" + str(s).replace("'", "''") + "'"
 
 
-class Streamed:
-    """Startet einen Prozess und liefert seine Ausgabe zeilenweise (\\r und \\n trennen)."""
-
-    def __init__(self, args: list[str], encoding: str = "utf-8", stdin_text: str | None = None):
-        self.encoding = encoding
-        self.proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                     stdin=subprocess.PIPE, creationflags=CREATE_NO_WINDOW)
-        if stdin_text is not None:
-            try:
-                self.proc.stdin.write(stdin_text.encode(encoding, "replace"))
-                self.proc.stdin.flush()
-            except OSError:
-                pass
-        try:
-            self.proc.stdin.close()
-        except OSError:
-            pass
-
-    def lines(self) -> Iterator[str]:
-        buf = b""
-        while True:
-            ch = self.proc.stdout.read(1)
-            if not ch:
-                break
-            if ch in (b"\r", b"\n"):
-                if buf.strip():
-                    yield buf.decode(self.encoding, "replace").strip()
-                buf = b""
-            else:
-                buf += ch
-        if buf.strip():
-            yield buf.decode(self.encoding, "replace").strip()
-
-    def wait(self) -> int:
-        return self.proc.wait()
-
-    def kill(self) -> None:
-        try:
-            # Ganzen Prozessbaum beenden (format.com hängt ggf. an conhost).
-            subprocess.run(["taskkill", "/PID", str(self.proc.pid), "/T", "/F"],
-                           capture_output=True, creationflags=CREATE_NO_WINDOW)
-        except OSError:
-            self.proc.kill()
-
-
-def streamed_ps(script: str) -> Streamed:
-    return Streamed(_cmd(script), encoding="utf-8")
-
-
 def oem_encoding() -> str:
     import ctypes
     try:
@@ -142,6 +92,3 @@ def windows_drive() -> str:
     if not ctypes.windll.kernel32.GetWindowsDirectoryW(buf, 260) or not buf.value:
         raise RuntimeError("Windows-Ordner nicht ermittelbar: Laufwerk unbekannt, Sperre nicht möglich")
     return buf.value[0].upper()
-
-
-ProgressFn = Callable[[float | None, str], None]

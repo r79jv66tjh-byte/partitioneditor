@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from . import model, ps
-from .model import Disk, Gap, MiB, Partition, Snapshot, align_down, align_up, fmt_size
+from .model import Disk, MiB, Partition, Snapshot, align_down, align_up, fmt_size
 from .settings import Settings
 
 OPS = ("create", "delete", "resize", "letter", "label", "active", "hidden", "convert")

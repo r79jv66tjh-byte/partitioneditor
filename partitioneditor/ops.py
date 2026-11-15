@@ -322,7 +322,6 @@ def apply_op(d: Disk, o: dict, used_letters: set[str], supported: dict | None = 
 
 @dataclass
 class Plan:
-    snapshot: Snapshot
     ops: list[dict]
     steps: list[dict] = field(default_factory=list)          # {op, disk, text}
     before: dict[int, Disk] = field(default_factory=dict)
@@ -333,9 +332,6 @@ class Plan:
     @property
     def ok(self) -> bool:
         return not self.errors and not any(self.blocked.values())
-
-    def confirm_hint(self, disk: int) -> str:
-        return str(disk)
 
     def confirm_letters(self, disk: int) -> set[str]:
         """Buchstabe als Bestätigung nur, wenn genau eine bestehende Partition betroffen ist."""
@@ -366,7 +362,7 @@ class Plan:
 def make_plan(snap: Snapshot, settings: Settings, ops: list[dict], supported: dict | None = None,
               fetch_supported: bool = True) -> Plan:
     """Alle Änderungen nacheinander simulieren. Fehler stehen in plan.errors (nichts wird geändert)."""
-    plan = Plan(snapshot=snap, ops=[])
+    plan = Plan(ops=[])
     used = set(snap.used_letters)
     supported = dict(supported or {})
     for i, raw in enumerate(ops, 1):

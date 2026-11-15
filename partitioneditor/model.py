@@ -67,7 +67,6 @@ class Partition:
     is_hidden: bool = False
     is_boot: bool = False
     is_system: bool = False
-    volume_path: str = ""
     new: bool = False            # nur in der Simulation: wird erst angelegt
 
     @property
@@ -339,7 +338,6 @@ def build_snapshot(raw: dict, system_letters: set[str]) -> Snapshot:
         if vol is not None:
             part.label = str(vol.get("Label") or "")
             part.filesystem = str(vol.get("FileSystem") or "")
-            part.volume_path = str(vol.get("Path") or "")
             if str(vol.get("DriveType")) == "Removable":
                 d.removable_volume = True
         if part.filesystem.lower() in ("unknown", "0"):
